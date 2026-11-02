@@ -35,7 +35,8 @@ def test_join_keeps_answered_cards_and_skips_errors(tmp_path):
     ]
     teacher.write_text("\n".join(json.dumps(x) for x in lines) + "\n")
     out, counts = cmf_import.import_files(cards, teacher, "ADA")
-    assert counts == {"cards": 3, "answers": 3, "joined": 2, "answers_without_card": 1}
+    assert counts == {"teacher_lines": 5, "teacher_errors": 1, "cards": 3, "answers": 3,
+                      "joined": 2, "answers_without_card": 1}
     first = out[0]
     assert first.key == "ADA-100-LONG" and first.teacher_decision == "TAKE"
     assert first.teacher_reason == "last wins" and first.teacher_seconds == 2.0
@@ -65,3 +66,4 @@ def test_import_cli_writes_dataset_and_fingerprint(tmp_path):
                      "--out", str(out)]) == 0
     m = json.loads(out.with_suffix(".manifest.json").read_text())
     assert m["cards"] == 1 and len(m["dataset_sha256"]) == 64 and len(m["inputs"]) == 2
+    assert m["join_counts"]["ADA"]["joined"] == 1

@@ -29,7 +29,8 @@ def test_run_scores_every_model_and_the_teacher_agrees_with_itself():
                      "pwin_tree", "outcome_tree"]
     teacher = next(r for r in res["rows"] if r["name"] == "teacher")
     assert teacher["agreement"] == 1.0
-    assert res["n_train"] + res["n_test"] == 400
+    assert res["n_train"] + res["n_test"] + res["n_purged"] == 400
+    assert res["n_purged"] > 0
     for r in res["rows"]:
         assert len(res["series"]["take"][r["name"]]) == res["n_test"]
 
@@ -52,5 +53,7 @@ def test_run_cli_on_saved_data(tmp_path):
     data = tmp_path / "d.jsonl"
     assert cli.main(["demo", "--n", "200", "--out", str(tmp_path / "a"),
                      "--save-data", str(data)]) == 0
-    assert cli.main(["run", "--data", str(data), "--out", str(tmp_path / "b")]) == 0
-    assert (tmp_path / "b" / "REPORT.md").exists()
+    assert cli.main(["run", "--data", str(data), "--out", str(tmp_path / "b"),
+                     "--teacher-cutoff", "2025-01-31"]) == 0
+    text = (tmp_path / "b" / "REPORT.md").read_text()
+    assert "method demonstration" in text and "purged" in text

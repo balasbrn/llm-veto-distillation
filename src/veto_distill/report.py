@@ -34,6 +34,31 @@ def _date(ts: int) -> str:
     return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d")
 
 
+def _join_lines(res: dict) -> list[str]:
+    jc = res.get("join_counts")
+    if not jc:
+        return []
+    out = [f"**Import** (teacher run `{res.get('teacher_run')}`):", "",
+           "| group | teacher lines | errors | answered signals | cards | joined |",
+           "|---|---|---|---|---|---|"]
+    out += [f"| {g} | {c.get('teacher_lines', '–')} | {c.get('teacher_errors', '–')} | "
+            f"{c['answers']} | {c['cards']} | {c['joined']} |" for g, c in jc.items()]
+    return out + [""]
+
+
+def _cutoff_lines(res: dict) -> list[str]:
+    cutoff = res.get("teacher_cutoff_ts")
+    if cutoff is None:
+        return []
+    last = max(res["series"]["ts"])
+    if last < cutoff:
+        return [f"**Teacher cutoff.** Every card predates the teacher's training cutoff "
+                f"({_date(cutoff)}), so the teacher may have seen these months during "
+                "training. Read these numbers as a method demonstration, not as clean "
+                "out-of-sample evidence.", ""]
+    return [f"Teacher cutoff {_date(cutoff)}; some cards are later than it.", ""]
+
+
 def to_markdown(res: dict, title: str, source: str, examples: list[Card],
                 figures: list[str]) -> str:
     best = best_student(res)
@@ -47,7 +72,17 @@ def to_markdown(res: dict, title: str, source: str, examples: list[Card],
         f"Cards: {res['n_cards']} teacher-labelled; students train on the earliest "
         f"{res['train_share']:.0%} of each group ({res['n_train']} cards, up to "
         f"{_date(res['train_to_ts'])}) and are scored on the rest ({res['n_test']} cards). "
+        f"{res['n_purged']} training cards within one day of the split were purged, so no "
+        f"training outcome (20 bars = 5 hours) overlaps the test period. "
         f"The teacher said TAKE on {res['teacher_take_share_train']:.0%} of training cards.", "",
+        "| group | train | test |", "|---|---|---|",
+        *[f"| {g} | {v['train']} | {v['test']} |" for g, v in res["split_by_group"].items()],
+        "",
+        f"**Small data.** With {res['n_test']} test cards, a mean R per trade carries a "
+        "standard error of roughly ±0.05–0.15 R (shown as ± below); differences smaller "
+        "than that are noise.", "",
+        *_join_lines(res),
+        *_cutoff_lines(res),
         "## Summary", "",
         f"- **Distillation:** the best student (`{best}`) agrees with the teacher on "
         f"{b['agreement']:.0%} of test cards (Cohen's κ {b['kappa']:.2f}); "

@@ -32,7 +32,7 @@ def cmd_demo(args) -> int:
 
 def cmd_import(args) -> int:
     root = Path(args.data_root).expanduser() if args.data_root else None
-    all_cards, inputs = [], []
+    all_cards, inputs, join_counts = [], [], {}
     for spec in args.source:
         try:
             group, pair, period = spec.split(":")
@@ -45,13 +45,15 @@ def cmd_import(args) -> int:
         cards_path, teacher_path = cmf_import.default_paths(root, pair, period, args.run)
         cards, counts = cmf_import.import_files(cards_path, teacher_path, group)
         print(f"{group}: {counts}")
+        join_counts[group] = counts
         all_cards += cards
         inputs += [{"group": group, "file": p.name, "sha256": data.sha256(p)}
                    for p in (cards_path, teacher_path)]
     out = Path(args.out)
     data.save(all_cards, out)
     manifest = {"dataset": out.name, "dataset_sha256": data.sha256(out),
-                "cards": len(all_cards), "teacher_run": args.run, "inputs": inputs}
+                "cards": len(all_cards), "teacher_run": args.run, "join_counts": join_counts,
+                "inputs": inputs}
     out.with_suffix(".manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(f"wrote {len(all_cards)} cards to {args.out}")
     return 0
@@ -69,6 +71,16 @@ def cmd_run(args) -> int:
     cards = data.load(Path(args.data))
     res = evaluate.run(cards, args.train_share)
     res["dataset_sha256"] = data.sha256(Path(args.data))
+    if args.teacher_cutoff:
+        from datetime import datetime, timezone
+
+        res["teacher_cutoff_ts"] = int(datetime.fromisoformat(args.teacher_cutoff)
+                                       .replace(tzinfo=timezone.utc).timestamp())
+    manifest = Path(args.data).with_suffix(".manifest.json")
+    if manifest.exists():
+        m = json.loads(manifest.read_text())
+        res["teacher_run"] = m.get("teacher_run")
+        res["join_counts"] = m.get("join_counts")
     path = report.write(res, Path(args.out), args.title, args.source_note, _examples(cards))
     print(f"wrote {path}")
     return 0
@@ -106,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--train-share", type=float, default=0.6)
     r.add_argument("--out", default="results/real")
     r.add_argument("--title", default="Distillation run")
+    r.add_argument("--teacher-cutoff", help="teacher's training cutoff, YYYY-MM-DD")
     r.add_argument("--source-note", default="teacher-labelled cards imported with `vd import`.")
     r.set_defaults(fn=cmd_run)
 

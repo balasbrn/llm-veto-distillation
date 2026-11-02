@@ -3,7 +3,6 @@ data/
 *.parquet
 *.csv
 *.jsonl
-!sample/anonymous_cards.jsonl
 *.db
 # secrets
 .env

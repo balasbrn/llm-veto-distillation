@@ -36,13 +36,16 @@ def read_cards(path: Path) -> list[dict]:
     return pq.read_table(path).to_pylist()
 
 
-def read_teacher(path: Path) -> dict[tuple[int, str], dict]:
-    """Last valid answer per signal; failed calls are skipped (counted by the caller)."""
+def read_teacher(path: Path, stats: dict | None = None) -> dict[tuple[int, str], dict]:
+    """Last valid answer per signal; failed calls are skipped and counted in `stats`."""
     out: dict[tuple[int, str], dict] = {}
-    for line in path.read_text().splitlines():
-        if not line.strip():
-            continue
+    stats = {} if stats is None else stats
+    lines = [x for x in path.read_text().splitlines() if x.strip()]
+    stats["teacher_lines"] = len(lines)
+    stats["teacher_errors"] = 0
+    for line in lines:
         r = json.loads(line)
+        stats["teacher_errors"] += "error" in r
         if "error" in r or r.get("decision") not in ("TAKE", "DONT_TAKE"):
             continue
         out[(int(r["bar_start_ts"]), r["direction"])] = r
@@ -50,7 +53,7 @@ def read_teacher(path: Path) -> dict[tuple[int, str], dict]:
 
 
 def join(card_rows: list[dict], answers: dict[tuple[int, str], dict],
-         group: str) -> tuple[list[Card], dict]:
+         group: str, stats: dict | None = None) -> tuple[list[Card], dict]:
     cards = []
     for row in card_rows:
         key = (int(row["bar_start_ts"]), row["direction"])
@@ -76,13 +79,15 @@ def join(card_rows: list[dict], answers: dict[tuple[int, str], dict],
             # the text the teacher saw (the stored text column rounds K to integers)
         ))
     matched = {(c.ts, c.direction) for c in cards}
-    counts = {"cards": len(card_rows), "answers": len(answers), "joined": len(cards),
-              "answers_without_card": len(set(answers) - matched)}
+    counts = {**(stats or {}), "cards": len(card_rows), "answers": len(answers),
+              "joined": len(cards), "answers_without_card": len(set(answers) - matched)}
     return cards, counts
 
 
 def import_files(cards_path: Path, teacher_path: Path, group: str) -> tuple[list[Card], dict]:
-    return join(read_cards(cards_path), read_teacher(teacher_path), group)
+    stats: dict = {}
+    answers = read_teacher(teacher_path, stats)
+    return join(read_cards(cards_path), answers, group, stats)
 
 
 def default_paths(data_root: Path, pair: str, period: str, run: str) -> tuple[Path, Path]:

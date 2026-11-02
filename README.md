@@ -68,9 +68,10 @@ Answer: TAKE or DONT_TAKE, win probability 0-1, reason in at most 40 words.
 - **Two questions, two metric sets.** Agreement and Cohen's κ for copying; win rate, mean R
   net per trade (with standard error) and cumulative R for usefulness. κ matters because a
   teacher that says TAKE 87% of the time is "copied" 87% of the time by a constant.
-- **No look-ahead.** Cards use only bars closed at the signal; students train on the earliest
-  60% of each coin's cards and are scored on the later 40%, so no test card precedes a training
-  card of the same coin.
+- **No look-ahead, with a purge.** Cards use only bars closed at the signal. Students train on
+  the earliest 60% of each coin's cards and are scored on the later 40%. Each outcome runs
+  20 bars (5 hours) past its card, so training cards within **one day** of the first test card
+  are dropped; otherwise the last training labels would contain test-period prices.
 - **A reference that skips the teacher.** `outcome_tree` is the same tree trained on real
   outcomes. If it beats the teacher, the LLM added nothing that the outcomes did not already hold.
 - **Costs are in the label.** R net includes a 0.04% per side fee and funding; trades whose fee
@@ -105,6 +106,17 @@ learn to copy the teacher cheaply, but copying it is not worth money.
 Pending the frozen snapshot run (`results/real/`). This section will hold the agreement, κ,
 speed and R-net table and the charts from that run, whatever they show.
 
+Read those numbers with two limits in mind:
+
+- **Small data.** Gemini answered only the latest 30% of fee-filtered dev signals, about 631
+  cards per coin. After the 60/40 split and the purge, that is roughly 370 training and 250
+  test cards per coin, so a mean R per trade has a standard error of about ±0.1 R. Every
+  R figure in the reports carries its ±.
+- **The teacher may have seen these months.** The cards are from 2018–2022, inside Gemini's
+  training period (cutoff believed to be January 2025). The real-data run is a demonstration
+  of the method, not clean out-of-sample evidence. A clean test would use only months after
+  the teacher's cutoff.
+
 ### Synthetic demo (pipeline check only)
 
 `vd demo` runs everything on made-up cards with a hand-written heuristic teacher, so anyone
@@ -115,8 +127,8 @@ Full output: [`results/synthetic/REPORT.md`](results/synthetic/REPORT.md).
 |---|---|---|---|
 | take every signal | 27.9% | 0.00 | −0.075 ± 0.061 |
 | teacher | 100% | 1.00 | −0.081 ± 0.117 |
-| `pwin_tree` (best student) | 75.2% | 0.36 | −0.102 ± 0.124 |
-| `outcome_tree` (no teacher) | 54.6% | −0.01 | −0.130 ± 0.098 |
+| `pwin_tree` (best student) | 75.4% | 0.36 | −0.045 ± 0.126 |
+| `outcome_tree` (no teacher) | 55.6% | 0.02 | −0.137 ± 0.096 |
 
 The best student runs in under 1 ms per card vs ~1.3 s for an API call.
 
@@ -129,18 +141,25 @@ The best student runs in under 1 ms per card vs ~1.3 s for an API call.
 
 ```bash
 make install          # Python 3.11+; numpy, scikit-learn, matplotlib (+ pyarrow for import)
-make test             # 19 tests, synthetic data only
+make test             # 22 tests, synthetic data only
 make demo             # full pipeline on synthetic data -> results/synthetic/
 ```
 
-With a snapshot of real teacher answers in a local folder:
+Colab runs the tests and the synthetic demo. The real-data run reads a private snapshot
+from a local folder (the data is not published):
 
 ```bash
-vd import --data-root ~/llm-veto-data \
-          --source ADA:ADAUSD:dev --source BTC:XBTUSD:dev-long \
-          --run gemini-2.5-flash-v2-think0 --out data/teacher_labels.jsonl
-vd run --data data/teacher_labels.jsonl --out results/real --title "Real data: Gemini v2 teacher"
+for RUN in gemini-2.5-flash-v2-think0 gemini-2.5-flash-v1.1-think1024; do
+  vd import --data-root ~/llm-veto-data \
+            --source ADA:ADAUSD:dev --source BTC:XBTUSD:dev-long \
+            --run $RUN --out data/$RUN.jsonl
+  vd run --data data/$RUN.jsonl --out results/real-$RUN --title "Real data: $RUN" \
+         --teacher-cutoff 2025-01-31
+done
 ```
+
+`vd import` prints the join counts and the report repeats them. Expected teacher lines:
+v2 633 (ADA) and 629 (BTC); v1.1-think1024 632 and 630.
 
 Expected snapshot layout: `h16/cards/<PAIR>/<period>/cards.parquet` (card fields, outcome,
 R net) and `h16/teacher/<PAIR>-<period>-<run>.jsonl` (one teacher answer per line).
@@ -163,7 +182,7 @@ src/veto_distill/
   plots.py       charts
   report.py      REPORT.md + metrics.json
   synthetic.py   synthetic cards and heuristic teacher for tests and the demo
-tests/           19 tests
+tests/           22 tests
 notebooks/       colab.ipynb: demo + real-data run in Colab
 results/         reports (synthetic now, real when run)
 ```

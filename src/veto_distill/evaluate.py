@@ -65,7 +65,7 @@ def calibration(cards: list[Card], bins: int = 6) -> list[dict]:
 
 def run(cards: list[Card], train_share: float = 0.6) -> dict:
     """Fit every student on the earlier cards, score all of them on the later ones."""
-    train, test = time_split(cards, train_share)
+    train, test, purged = time_split(cards, train_share)
     if not train or not test:
         raise ValueError(f"need cards in both parts; got {len(train)} train, {len(test)} test")
     t_take = st.teacher_take(test)
@@ -106,6 +106,10 @@ def run(cards: list[Card], train_share: float = 0.6) -> dict:
                                           and g is not None else None)
     return {
         "n_cards": len(cards), "n_train": len(train), "n_test": len(test),
+        "n_purged": purged,
+        "split_by_group": {g: {"train": sum(c.group == g for c in train),
+                               "test": sum(c.group == g for c in test)}
+                           for g in sorted({c.group for c in cards})},
         "train_share": train_share,
         "test_from_ts": min(c.ts for c in test), "train_to_ts": max(c.ts for c in train),
         "teacher_take_share_train": float(st.teacher_take(train).mean()),
