@@ -1,0 +1,228 @@
+{
+  "n_cards": 1261,
+  "n_train": 751,
+  "n_test": 505,
+  "n_purged": 5,
+  "split_by_group": {
+    "ADA": {
+      "train": 378,
+      "test": 253
+    },
+    "BTC": {
+      "train": 373,
+      "test": 252
+    }
+  },
+  "train_share": 0.6,
+  "test_from_ts": 1627347600,
+  "train_to_ts": 1652983200,
+  "teacher_take_share_train": 0.8854860186418109,
+  "rows": [
+    {
+      "name": "take_all",
+      "kind": "reference",
+      "agreement": 0.8396039603960396,
+      "kappa": 0.0,
+      "n_take": 505,
+      "take_share": 1.0,
+      "win_rate": 0.31287128712871287,
+      "r_net_mean": -0.0007955309650719803,
+      "r_net_total": -0.40174313736135003,
+      "r_net_se": 0.06135669776655838
+    },
+    {
+      "name": "teacher",
+      "kind": "teacher",
+      "agreement": 1.0,
+      "kappa": 1.0,
+      "n_take": 424,
+      "take_share": 0.8396039603960396,
+      "win_rate": 0.33254716981132076,
+      "r_net_mean": 0.05057065553601292,
+      "r_net_total": 21.44195794726948,
+      "r_net_se": 0.06774420655171215,
+      "ms_per_card": 1070.0
+    },
+    {
+      "name": "majority",
+      "kind": "student",
+      "agreement": 0.8396039603960396,
+      "kappa": 0.0,
+      "n_take": 505,
+      "take_share": 1.0,
+      "win_rate": 0.31287128712871287,
+      "r_net_mean": -0.0007955309650719803,
+      "r_net_total": -0.40174313736135003,
+      "r_net_se": 0.06135669776655838,
+      "ms_per_card": 0.00024570917507799544,
+      "share_of_teacher_gain": 0.0
+    },
+    {
+      "name": "logistic",
+      "kind": "student",
+      "agreement": 0.5306930693069307,
+      "kappa": 0.12163600202555425,
+      "n_take": 227,
+      "take_share": 0.4495049504950495,
+      "win_rate": 0.32599118942731276,
+      "r_net_mean": 0.013231829095111265,
+      "r_net_total": 3.003625204590257,
+      "r_net_se": 0.09271488842503045,
+      "ms_per_card": 0.09129480228270634,
+      "share_of_teacher_gain": 0.2730854870817979
+    },
+    {
+      "name": "tree",
+      "kind": "student",
+      "agreement": 0.8138613861386138,
+      "kappa": 0.4092097075295581,
+      "n_take": 390,
+      "take_share": 0.7722772277227723,
+      "win_rate": 0.32564102564102565,
+      "r_net_mean": 0.031929293708174294,
+      "r_net_total": 12.452424546187975,
+      "r_net_se": 0.07034801107428783,
+      "ms_per_card": 3.0442695548333742,
+      "share_of_teacher_gain": 0.6370888497349341
+    },
+    {
+      "name": "text",
+      "kind": "student",
+      "agreement": 0.7801980198019802,
+      "kappa": 0.15435907493173617,
+      "n_take": 431,
+      "take_share": 0.8534653465346534,
+      "win_rate": 0.32018561484918795,
+      "r_net_mean": 0.0025397367170030675,
+      "r_net_total": 1.094626525028322,
+      "r_net_se": 0.06680496543749899,
+      "ms_per_card": 2.2604619641557777,
+      "share_of_teacher_gain": 0.06493119130042102
+    },
+    {
+      "name": "pwin_tree",
+      "kind": "student",
+      "agreement": 0.8594059405940594,
+      "kappa": 0.29012651210675333,
+      "n_take": 477,
+      "take_share": 0.9445544554455445,
+      "win_rate": 0.31865828092243187,
+      "r_net_mean": 0.01622902737772179,
+      "r_net_total": 7.741246059173294,
+      "r_net_se": 0.06341562897937447,
+      "ms_per_card": 0.4331456276007218,
+      "pwin_mae": 0.02283986147408378,
+      "pwin_spearman": 0.718776939805782,
+      "share_of_teacher_gain": 0.33143512303437583
+    },
+    {
+      "name": "outcome_tree",
+      "kind": "reference",
+      "agreement": 0.35247524752475246,
+      "kappa": 0.023949830660748184,
+      "n_take": 131,
+      "take_share": 0.2594059405940594,
+      "win_rate": 0.37404580152671757,
+      "r_net_mean": 0.17168282454860845,
+      "r_net_total": 22.490450015867708,
+      "r_net_se": 0.12394677339017762,
+      "ms_per_card": 0.507619718808939,
+      "pwin_mae": 0.17628631514873372,
+      "pwin_spearman": 0.0012303093663403608
+    }
+  ],
+  "by_group": {
+    "ADA": {
+      "n": 253,
+      "take_all": {
+        "n_take": 253,
+        "take_share": 1.0,
+        "win_rate": 0.32806324110671936,
+        "r_net_mean": -0.02834262265256924,
+        "r_net_total": -7.170683531100018,
+        "r_net_se": 0.088402690268049
+      },
+      "teacher": {
+        "n_take": 229,
+        "take_share": 0.9051383399209486,
+        "win_rate": 0.34497816593886466,
+        "r_net_mean": 0.017203542014410017,
+        "r_net_total": 3.939611121299894,
+        "r_net_se": 0.0937096170214428
+      }
+    },
+    "BTC": {
+      "n": 252,
+      "take_all": {
+        "n_take": 252,
+        "take_share": 1.0,
+        "win_rate": 0.2976190476190476,
+        "r_net_mean": 0.026860874578328035,
+        "r_net_total": 6.7689403937386645,
+        "r_net_se": 0.0852360223383757
+      },
+      "teacher": {
+        "n_take": 195,
+        "take_share": 0.7738095238095238,
+        "win_rate": 0.31794871794871793,
+        "r_net_mean": 0.08975562474856202,
+        "r_net_total": 17.502346825969596,
+        "r_net_se": 0.09809747823787814
+      }
+    }
+  },
+  "calibration": [
+    {
+      "p_mean": 0.35,
+      "win_rate": 0.26666666666666666,
+      "n": 210
+    },
+    {
+      "p_mean": 0.37971428571428567,
+      "win_rate": 0.3142857142857143,
+      "n": 210
+    },
+    {
+      "p_mean": 0.4028571428571428,
+      "win_rate": 0.30952380952380953,
+      "n": 210
+    },
+    {
+      "p_mean": 0.42000000000000004,
+      "win_rate": 0.3047619047619048,
+      "n": 210
+    },
+    {
+      "p_mean": 0.4231428571428572,
+      "win_rate": 0.3238095238095238,
+      "n": 210
+    },
+    {
+      "p_mean": 0.48791469194312803,
+      "win_rate": 0.26540284360189575,
+      "n": 211
+    }
+  ],
+  "teacher_gain_r_per_trade": 0.051366186501084904,
+  "dataset_sha256": "7b0ac98d243a0a3cc1766c393e0a5c3214eb8ae1e186967625f113eafeed54ab",
+  "teacher_cutoff_ts": 1738281600,
+  "teacher_run": "gemini-2.5-flash-v2-think0",
+  "join_counts": {
+    "ADA": {
+      "teacher_lines": 633,
+      "teacher_errors": 1,
+      "cards": 6385,
+      "answers": 632,
+      "joined": 632,
+      "answers_without_card": 0
+    },
+    "BTC": {
+      "teacher_lines": 629,
+      "teacher_errors": 0,
+      "cards": 16740,
+      "answers": 629,
+      "joined": 629,
+      "answers_without_card": 0
+    }
+  }
+}
