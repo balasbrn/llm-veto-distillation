@@ -24,7 +24,7 @@ the two questions apart is the point of the project.
 ```mermaid
 flowchart LR
     subgraph lab["Private research lab (not in this repo)"]
-        A[Kraken 15m bars] --> B[Signal + feature card<br/>no symbol, date or price]
+        A[15m crypto price bars] --> B[Anonymous feature card<br/>no symbol, date, price or venue]
         B --> C[Triple-barrier outcome<br/>stop 1 ATR, TP 2 ATR, 20 bars]
         B --> D[Teacher LLM<br/>p_win + reason]
     end
@@ -44,8 +44,8 @@ flowchart LR
 
 ## What a card looks like
 
-The teacher and every student see only this (numbers are relative, so the coin and era
-cannot be identified). The outcome is never on the card. (Illustrative values.)
+The data is anonymous by design: the teacher and every student see only this card, where
+every number is relative (ATR units, %, ranks), so the coin, venue and era cannot be identified. The outcome is never on the card. (Illustrative values.)
 
 ```
 Signal: SHORT, 15m bars. StochRSI K 99.0 -> 92.9 (turn out of overbought).
