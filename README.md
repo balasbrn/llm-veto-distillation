@@ -125,6 +125,8 @@ The best student runs in under 1 ms per card vs ~1.3 s for an API call.
 
 ## How to run
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/balasbrn/llm-veto-distillation/blob/main/notebooks/colab.ipynb) — or locally:
+
 ```bash
 make install          # Python 3.11+; numpy, scikit-learn, matplotlib (+ pyarrow for import)
 make test             # 19 tests, synthetic data only
@@ -162,6 +164,7 @@ src/veto_distill/
   report.py      REPORT.md + metrics.json
   synthetic.py   synthetic cards and heuristic teacher for tests and the demo
 tests/           19 tests
+notebooks/       colab.ipynb: demo + real-data run in Colab
 results/         reports (synthetic now, real when run)
 ```
 
