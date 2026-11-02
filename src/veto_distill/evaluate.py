@@ -63,6 +63,47 @@ def calibration(cards: list[Card], bins: int = 6) -> list[dict]:
     return out
 
 
+BOOT = 2000  # bootstrap resamples for the paired differences
+SIGNIFICANT_SE = 2.0  # a difference counts as measurable only beyond about 2 SE
+
+
+def paired_diff(take: np.ndarray, r: np.ndarray, boot: int = BOOT, seed: int = 0) -> dict:
+    """Mean R of the TAKE set minus mean R of every card, with a paired bootstrap SE.
+
+    The TAKE set is a subset of the same cards, so the two means are not independent;
+    resampling cards once and computing both on the same resample keeps the pairing.
+    """
+    take = np.asarray(take, bool)
+    if take.sum() == 0:
+        return {"diff_vs_take_all": None, "diff_se": None, "diff_z": None}
+    diff = float(r[take].mean() - r.mean())
+    rng = np.random.default_rng(seed)
+    n = len(r)
+    diffs = []
+    for _ in range(boot):
+        idx = rng.integers(0, n, n)
+        t = take[idx]
+        if t.any():
+            diffs.append(r[idx][t].mean() - r[idx].mean())
+    se = float(np.std(diffs, ddof=1)) if len(diffs) > 1 else None
+    z = diff / se if se else None
+    return {"diff_vs_take_all": diff, "diff_se": se, "diff_z": z}
+
+
+def calibration_summary(cards: list[Card]) -> dict | None:
+    """Mean teacher p_win vs the realised win rate, and how well p_win ranks wins (AUC)."""
+    from sklearn.metrics import roc_auc_score
+
+    cs = [c for c in cards if c.teacher_p_win is not None]
+    if not cs:
+        return None
+    p = np.array([c.teacher_p_win for c in cs])
+    y = np.array([c.outcome == "win" for c in cs])
+    auc = float(roc_auc_score(y, p)) if 0 < y.sum() < len(y) else None
+    return {"n": len(cs), "mean_p_win": float(p.mean()), "win_rate": float(y.mean()),
+            "overconfidence": float(p.mean() - y.mean()), "auc": auc}
+
+
 def run(cards: list[Card], train_share: float = 0.6) -> dict:
     """Fit every student on the earlier cards, score all of them on the later ones."""
     train, test, purged = time_split(cards, train_share)
@@ -98,6 +139,9 @@ def run(cards: list[Card], train_share: float = 0.6) -> dict:
         sub = [test[i] for i in idx]
         by_group[g] = {"n": len(sub), "take_all": trading(np.ones(len(sub), bool), sub),
                        "teacher": trading(t_take[idx], sub)}
+    r_test = np.array([c.r_net for c in test])
+    for r in rows:
+        r.update(paired_diff(np.array(takes[r["name"]]), r_test))
     teacher_gain = _gain(rows, "teacher")
     for r in rows:
         if r["kind"] == "student":
@@ -115,6 +159,14 @@ def run(cards: list[Card], train_share: float = 0.6) -> dict:
         "teacher_take_share_train": float(st.teacher_take(train).mean()),
         "rows": rows, "by_group": by_group,
         "calibration": calibration(cards),
+        "calibration_summary": calibration_summary(cards),
+        # take every card in the dataset (train and test), per group, for cross-checks
+        "take_all_every_card": {
+            g: trading(np.ones(sum(c.group == g for c in cards), bool),
+                       [c for c in cards if c.group == g])
+            for g in sorted({c.group for c in cards})} | {
+            "all": trading(np.ones(len(cards), bool), cards)},
+        "test_to_ts": max(c.ts for c in test),
         "teacher_gain_r_per_trade": teacher_gain,
         # per test card, for the plots (not part of metrics.json)
         "series": {"ts": [c.ts for c in test], "r_net": [c.r_net for c in test],

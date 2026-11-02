@@ -15,9 +15,9 @@ teacher's decisions from the same card, then measures two separate things:
 A student can copy the teacher perfectly and still lose money, if the teacher does. Keeping
 the two questions apart is the point of the project.
 
-> **Status:** the pipeline, tests and synthetic demo are complete. The real-data run uses a
-> frozen snapshot of the upstream teacher answers and is [pending](#results); the teacher's own
-> results on real data are already known and are reported below, including the bad parts.
+> **Status:** pipeline, tests, synthetic demo and the real-data run are done. Students copy
+> the teacher moderately (κ ≈ 0.4–0.5) at ~3 ms per card instead of ~1–5 s per API call; on
+> these few hundred test cards no decision maker shows a measurable edge (see [Results](#results)).
 
 ## Architecture
 
@@ -85,7 +85,10 @@ Answer: TAKE or DONT_TAKE, win probability 0-1, reason in at most 40 words.
 
 ### The teacher on real data (upstream, already measured)
 
-Latest 30% of fee-filtered dev signals (ADA 2022, BTC 2021–22), mean R net per trade after costs:
+Scored upstream on the latest 30% of fee-filtered dev signals, from the first full month
+(574 ADA and 609 BTC trades), mean R net per trade after costs. This is a **different window**
+from the student results below, which score only the latest 40% of the teacher-labelled
+cards, so the "take every signal" numbers differ between the two tables.
 
 | decision maker | ADA trades | ADA R net | BTC trades | BTC R net |
 |---|---|---|---|---|
@@ -103,19 +106,60 @@ learn to copy the teacher cheaply, but copying it is not worth money.
 
 ### Students on real data
 
-Pending the frozen snapshot run (`results/real/`). This section will hold the agreement, κ,
-speed and R-net table and the charts from that run, whatever they show.
+Two teacher runs, 1,261 teacher-labelled cards each (ADA 632, BTC 629; join counts match the
+upstream record). Students train on the earliest 60% of each coin (751 cards after purging 5
+at the boundary) and are scored on the latest 40% (505 cards: BTC from late July 2021, ADA from late May 2022, both to the end of 2022).
+Full reports: [v2](results/real-gemini-2.5-flash-v2-think0/REPORT.md) (main) and
+[v1.1-think1024](results/real-gemini-2.5-flash-v1.1-think1024/REPORT.md) (comparison).
 
-Read those numbers with two limits in mind:
+**Distillation works moderately.** κ against the teacher (0 = chance, 1 = perfect copy):
 
-- **Small data.** Gemini answered only the latest 30% of fee-filtered dev signals, about 631
-  cards per coin. After the 60/40 split and the purge, that is roughly 370 training and 250
-  test cards per coin, so a mean R per trade has a standard error of about ±0.1 R. Every
-  R figure in the reports carries its ±.
-- **The teacher may have seen these months.** The cards are from 2018–2022, inside Gemini's
-  training period (cutoff believed to be January 2025). The real-data run is a demonstration
-  of the method, not clean out-of-sample evidence. A clean test would use only months after
-  the teacher's cutoff.
+| student | κ, v2 teacher | κ, v1.1-think1024 teacher | ms / card (fit + predict) |
+|---|---|---|---|
+| `tree` (depth-3 boosted tree on the card's numbers) | **0.41** | **0.49** | ~3 |
+| `pwin_tree` (regresses p_win, applies the teacher's rule) | 0.29 | 0.46 | <1 |
+| `text` (char n-gram TF-IDF on the card text) | 0.15 | 0.22 | ~2 |
+| `logistic` | 0.12 | 0.21 | <0.1 |
+| teacher (one API call) | – | – | 1,070 (v2), 5,370 (v1.1) |
+
+Raw agreement looks better than it is: the v2 teacher says TAKE on 84–89% of cards, so
+"always TAKE" already agrees 84%, more than any student. That is why κ leads. `pwin_tree`
+reproduces v2's p_win to within 0.023 on average (rank correlation 0.72).
+
+**No reliable edge.** Mean R net per trade on the 505 test cards (± one standard error):
+
+| decision maker | v2 run | v1.1-think1024 run |
+|---|---|---|
+| take every signal | −0.001 ± 0.061 | −0.001 ± 0.061 |
+| teacher | +0.051 ± 0.068 (424 trades) | +0.024 ± 0.106 (172) |
+| best student (`tree`) | +0.032 ± 0.070 (390) | −0.040 ± 0.104 (175) |
+| `outcome_tree` (no teacher) | +0.172 ± 0.124 (131) | same |
+
+The teacher's set is a subset of the same cards, so the fair test is the **paired** difference
+from taking every signal. Each report computes it with a bootstrap, and a difference counts
+only beyond about 2 SE. The v1.1 teacher (+0.025), every student and `outcome_tree` (about 1.6 SE)
+stay inside that. The one borderline case is the v2 teacher's +0.05 R. A rough paired estimate
+from the summary numbers puts it near 2 SE, and the bootstrap figure is in the
+[v2 report](results/real-gemini-2.5-flash-v2-think0/REPORT.md). Even at 2 SE it is the
+better of two teacher runs, on months the teacher may have seen in training. It does not
+survive into its students (`tree` +0.033, about 1 SE).
+
+`outcome_tree` has the largest number on the page, but it is about 1.4 SE from zero and the
+best of eight rows. That is not significant, and it is not evidence of an edge.
+
+**Why copying adds nothing: the teacher is not calibrated.** v2's p_win runs 0.35–0.49 while
+realised win rates are 26–32% in every bin, with no upward slope. The teacher is overconfident
+by about 10 points, and its p_win does not rank outcomes. A student can learn to reproduce that
+number, but the number carries no information about the trade.
+
+**Limits.** This is small data: Gemini answered only the latest 30% of fee-filtered dev
+signals, about 631 cards per coin, which leaves roughly 375 training and 250 test cards per
+coin. Also, every card (2018–2022) predates Gemini's training cutoff (believed to be January
+2025), so the teacher may have seen these months. Treat all of this as a demonstration of the
+method, not as out-of-sample evidence.
+
+![calibration v2](results/real-gemini-2.5-flash-v2-think0/figures/calibration.png)
+![cumulative R v2](results/real-gemini-2.5-flash-v2-think0/figures/cumulative_r.png)
 
 ### Synthetic demo (pipeline check only)
 
@@ -141,7 +185,7 @@ The best student runs in under 1 ms per card vs ~1.3 s for an API call.
 
 ```bash
 make install          # Python 3.11+; numpy, scikit-learn, matplotlib (+ pyarrow for import)
-make test             # 22 tests, synthetic data only
+make test             # 24 tests, synthetic data only
 make demo             # full pipeline on synthetic data -> results/synthetic/
 ```
 
@@ -182,7 +226,7 @@ src/veto_distill/
   plots.py       charts
   report.py      REPORT.md + metrics.json
   synthetic.py   synthetic cards and heuristic teacher for tests and the demo
-tests/           22 tests
+tests/           24 tests
 notebooks/       colab.ipynb: demo + real-data run in Colab
 results/         reports (synthetic now, real when run)
 ```

@@ -13,26 +13,37 @@ Cards: 1200 teacher-labelled; students train on the earliest 60% of each group (
 
 ## Summary
 
-- **Distillation:** the best student (`pwin_tree`) agrees with the teacher on 75% of test cards (Cohen's κ 0.36); always giving the teacher's most common answer agrees on 72%.
-- **Speed:** teacher median 1,260 ms per card (one API call); `pwin_tree` 0.43 ms per card including training.
-- **Usefulness:** taking every test signal earns -0.075 R per trade; the teacher's TAKE set -0.081 R; `pwin_tree` -0.045 R. The teacher does not beat taking everything, so even a perfect copy inherits no edge.
+- **Distillation:** the best student (`pwin_tree`) reaches Cohen's κ 0.36 against the teacher (0 = chance, 1 = perfect copy), with raw agreement 75%. Raw agreement is inflated by the teacher's 28% TAKE rate on test cards: always giving its most common answer already agrees on 72%.
+- **Speed:** teacher median 1,260 ms per card (one API call); `pwin_tree` 0.37 ms per card including training.
+- **Usefulness:** taking every test signal earns -0.075 R per trade. The teacher's TAKE set differs from that by -0.007 ± 0.100 (-0.1 SE), `pwin_tree` by +0.030 ± 0.114 (+0.3 SE) (paired bootstrap SE). Neither the teacher nor any student shows a measurable difference from taking every signal, so there is no edge to distil.
+- **Calibration:** the teacher's p_win averages 0.35 against a realised win rate of 32% (p_win bins 0.28–0.42, realised win rates 29%–35%), overconfident by 2 points. Its p_win ranks wins with AUC 0.50 (0.5 = no ranking). A probability that does not rank outcomes gives a student nothing useful to copy.
 
 ## All decision makers (test cards)
 
-| model | what it is | agreement | κ | TAKE | win rate | R net / trade | total R | ms / card |
-|---|---|---|---|---|---|---|---|---|
-| `take_all` | take every signal (no veto) | 27.9% | 0.00 | 480 (100%) | 29.6% | -0.075 ± 0.061 | -35.8 | – |
-| `teacher` | the LLM's decisions | 100.0% | 1.00 | 134 (28%) | 29.9% | -0.081 ± 0.117 | -10.9 | 1,260.00 |
-| `majority` | student: always the teacher's most common answer | 72.1% | 0.00 | 0 (0%) | – | – ± – | +0.0 | 0.00 |
-| `logistic` | student: logistic regression on the card's numbers | 50.0% | -0.00 | 238 (50%) | 30.7% | -0.053 ± 0.088 | -12.6 | 0.02 |
-| `tree` | student: gradient-boosted tree (depth 3) on the card's numbers | 69.6% | 0.27 | 152 (32%) | 30.3% | -0.062 ± 0.109 | -9.4 | 3.65 |
-| `text` | student: char n-gram TF-IDF + logistic regression on the card text | 57.1% | -0.01 | 160 (33%) | 30.0% | -0.039 ± 0.105 | -6.2 | 1.25 |
-| `pwin_tree` | student: tree regressing the teacher's p_win, then the teacher's rule | 75.4% | 0.36 | 116 (24%) | 31.0% | -0.045 ± 0.126 | -5.2 | 0.43 |
-| `outcome_tree` | not a student: the same tree trained on real outcomes | 55.6% | 0.02 | 189 (39%) | 28.0% | -0.137 ± 0.096 | -25.9 | 0.27 |
+| model | what it is | κ | agreement | TAKE | win rate | R net / trade | Δ vs take all (paired SE) | total R | ms / card |
+|---|---|---|---|---|---|---|---|---|---|
+| `take_all` | take every signal (no veto) | 0.00 | 27.9% | 480 (100%) | 29.6% | -0.075 ± 0.061 | – | -35.8 | – |
+| `teacher` | the LLM's decisions | 1.00 | 100.0% | 134 (28%) | 29.9% | -0.081 ± 0.117 | -0.007 ± 0.100 (-0.1 SE) | -10.9 | 1,260.00 |
+| `majority` | student: always the teacher's most common answer | 0.00 | 72.1% | 0 (0%) | – | – ± – | – | +0.0 | 0.00 |
+| `logistic` | student: logistic regression on the card's numbers | -0.00 | 50.0% | 238 (50%) | 30.7% | -0.053 ± 0.088 | +0.022 ± 0.061 (+0.4 SE) | -12.6 | 0.04 |
+| `tree` | student: gradient-boosted tree (depth 3) on the card's numbers | 0.27 | 69.6% | 152 (32%) | 30.3% | -0.062 ± 0.109 | +0.013 ± 0.089 (+0.1 SE) | -9.4 | 4.09 |
+| `text` | student: char n-gram TF-IDF + logistic regression on the card text | -0.01 | 57.1% | 160 (33%) | 30.0% | -0.039 ± 0.105 | +0.036 ± 0.084 (+0.4 SE) | -6.2 | 1.42 |
+| `pwin_tree` | student: tree regressing the teacher's p_win, then the teacher's rule | 0.36 | 75.4% | 116 (24%) | 31.0% | -0.045 ± 0.126 | +0.030 ± 0.114 (+0.3 SE) | -5.2 | 0.37 |
+| `outcome_tree` | not a student: the same tree trained on real outcomes | 0.02 | 55.6% | 189 (39%) | 28.0% | -0.137 ± 0.096 | -0.062 ± 0.076 (-0.8 SE) | -25.9 | 0.27 |
+
+No decision maker earns a positive mean R per trade on the test cards.
 
 `pwin_tree` reproduces the teacher's p_win with a mean absolute error of 0.036 and rank correlation 0.34.
 
-Teacher ms / card is the API latency the teacher run logged; student ms / card is fit plus predict time on this machine divided by test cards, so it is an upper bound on inference time. R net ± is one standard error of the mean.
+Teacher ms / card is the API latency the teacher run logged; student ms / card is fit plus predict time on this machine divided by test cards, so it is an upper bound on inference time. R net ± is one standard error of the mean. Δ vs take all is the TAKE set's mean R minus every test card's mean R, with a paired bootstrap standard error (the TAKE set is a subset of the same cards); a difference counts as measurable only beyond about 2 SE.
+
+**Window.** Test cards run from 2022-02-22 to 2022-03-29: the latest 40% of the teacher-labelled cards, a later and shorter window than any score computed on all of them. Taking every card over the whole dataset, for comparison:
+
+| group | cards | win rate | R net / trade |
+|---|---|---|---|
+| A | 600 | 35.5% | +0.082 ± 0.057 |
+| B | 600 | 29.5% | -0.051 ± 0.054 |
+| all | 1200 | 32.5% | +0.015 ± 0.039 |
 
 ## Per group (test cards)
 

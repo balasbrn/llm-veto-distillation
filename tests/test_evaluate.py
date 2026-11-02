@@ -57,3 +57,22 @@ def test_run_cli_on_saved_data(tmp_path):
                      "--teacher-cutoff", "2025-01-31"]) == 0
     text = (tmp_path / "b" / "REPORT.md").read_text()
     assert "method demonstration" in text and "purged" in text
+
+
+def test_paired_diff_is_zero_for_take_all_and_detects_a_planted_edge():
+    rng = np.random.default_rng(1)
+    r = rng.normal(0, 1, 2000)
+    assert evaluate.paired_diff(np.ones(2000, bool), r)["diff_vs_take_all"] == 0
+    good = r > 0.5  # a filter that picks winners must be far beyond 2 SE
+    out = evaluate.paired_diff(good, r, boot=300)
+    assert out["diff_z"] > 10
+    noise = rng.random(2000) < 0.5  # a random filter must not be
+    assert abs(evaluate.paired_diff(noise, r, boot=300)["diff_z"]) < 3
+
+
+def test_report_says_no_measurable_difference_on_noise(tmp_path):
+    assert cli.main(["demo", "--n", "400", "--out", str(tmp_path)]) == 0
+    text = (tmp_path / "REPORT.md").read_text()
+    assert "Cohen's κ" in text.split("## All decision makers")[0]
+    assert "paired" in text and "Calibration" in text
+    assert "beats taking everything" not in text
