@@ -1,0 +1,20 @@
+# data never goes in the repo
+data/
+*.parquet
+*.csv
+*.jsonl
+*.db
+# secrets
+.env
+*.key
+*.pem
+*credentials*.json
+service-account*.json
+# python
+__pycache__/
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+build/
+dist/
