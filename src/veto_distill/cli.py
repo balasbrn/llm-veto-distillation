@@ -57,6 +57,14 @@ def cmd_import(args) -> int:
     return 0
 
 
+def cmd_sample(args) -> int:
+    cards = data.public_sample(data.load(Path(args.data)), args.n)
+    out = Path(args.out)
+    data.save(cards, out)
+    print(f"wrote {len(cards)} anonymous cards to {out} (sha256 {data.sha256(out)})")
+    return 0
+
+
 def cmd_run(args) -> int:
     cards = data.load(Path(args.data))
     res = evaluate.run(cards, args.train_share)
@@ -86,6 +94,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="teacher run name in the upstream file name")
     i.add_argument("--out", default="data/teacher_labels.jsonl")
     i.set_defaults(fn=cmd_import)
+
+    s = sub.add_parser("sample", help="anonymous public sample of a dataset (dates removed)")
+    s.add_argument("--data", default="data/teacher_labels.jsonl")
+    s.add_argument("--n", type=int, default=500)
+    s.add_argument("--out", default="sample/anonymous_cards.jsonl")
+    s.set_defaults(fn=cmd_sample)
 
     r = sub.add_parser("run", help="train the students and write the report")
     r.add_argument("--data", default="data/teacher_labels.jsonl")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from veto_distill.card import Card
@@ -47,3 +48,20 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: f.read(1 << 20), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def public_sample(cards: list[Card], n: int = 500, bar_s: int = 900) -> list[Card]:
+    """An anonymous sample that is safe to publish: n cards spread evenly over time in each
+    group, real timestamps replaced by a running bar index (order kept, dates gone), keys
+    and group names replaced by neutral ones. Card fields, teacher answers and outcomes stay."""
+    groups = sorted({c.group for c in cards})
+    names = {g: f"G{i + 1}" for i, g in enumerate(groups)}
+    out = []
+    for g in groups:
+        part = sorted((c for c in cards if c.group == g), key=lambda c: (c.ts, c.key))
+        k = min(len(part), n * len(part) // len(cards) or 1)
+        picks = [part[i * len(part) // k] for i in range(k)]
+        for j, c in enumerate(picks):
+            out.append(replace(c, key=f"{names[g]}-{j:04d}", group=names[g], ts=j * bar_s,
+                               text=""))
+    return sorted(out, key=lambda c: (c.ts, c.key))

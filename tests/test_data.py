@@ -26,3 +26,16 @@ def test_time_split_is_per_group_and_never_looks_ahead():
 def test_time_split_rejects_bad_share():
     with pytest.raises(ValueError):
         data.time_split(make_dataset(10), 1.0)
+
+
+def test_public_sample_hides_dates_and_names_but_keeps_order_and_labels():
+    cards = make_dataset(1000, groups=("ADA", "BTC"))
+    sample = data.public_sample(cards, 500)
+    assert 490 <= len(sample) <= 500
+    assert {c.group for c in sample} == {"G1", "G2"}
+    assert max(c.ts for c in sample) < 1_000_000  # bar index, not a date
+    assert all("ADA" not in c.key and "BTC" not in c.key for c in sample)
+    originals = {(c.k, c.k_prev, c.r_net) for c in cards}
+    assert all((c.k, c.k_prev, c.r_net) in originals for c in sample)
+    for g in ("G1", "G2"):  # still splittable in time order
+        assert [c.ts for c in sample if c.group == g] == sorted(c.ts for c in sample if c.group == g)
