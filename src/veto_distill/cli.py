@@ -67,15 +67,30 @@ def cmd_sample(args) -> int:
     return 0
 
 
+def _day_ts(day: str) -> int:
+    from datetime import datetime, timezone
+
+    return int(datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp())
+
+
+def cmd_compare(args) -> int:
+    from veto_distill import compare
+
+    text = compare.to_markdown(Path(args.a), Path(args.b) if args.b else None, args.model)
+    if args.out:
+        Path(args.out).write_text(text)
+    print(text)
+    return 0
+
+
 def cmd_run(args) -> int:
     cards = data.load(Path(args.data))
-    res = evaluate.run(cards, args.train_share)
+    drop = tuple(x.strip() for x in args.drop_features.split(",") if x.strip())
+    cutoff = _day_ts(args.cutoff) if args.cutoff else None
+    res = evaluate.run(cards, args.train_share, drop=drop, cutoff_ts=cutoff)
     res["dataset_sha256"] = data.sha256(Path(args.data))
     if args.teacher_cutoff:
-        from datetime import datetime, timezone
-
-        res["teacher_cutoff_ts"] = int(datetime.fromisoformat(args.teacher_cutoff)
-                                       .replace(tzinfo=timezone.utc).timestamp())
+        res["teacher_cutoff_ts"] = _day_ts(args.teacher_cutoff)
     manifest = Path(args.data).with_suffix(".manifest.json")
     if manifest.exists():
         m = json.loads(manifest.read_text())
@@ -118,9 +133,20 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--train-share", type=float, default=0.6)
     r.add_argument("--out", default="results/real")
     r.add_argument("--title", default="Distillation run")
+    r.add_argument("--drop-features", default="",
+                   help="comma-separated card.FEATURES names left out of every tabular student")
+    r.add_argument("--cutoff", help="one shared date split YYYY-MM-DD instead of the per-coin "
+                                    "share (train = ts + 1 day < cutoff, test = ts >= cutoff)")
     r.add_argument("--teacher-cutoff", help="teacher's training cutoff, YYYY-MM-DD")
     r.add_argument("--source-note", default="teacher-labelled cards imported with `vd import`.")
     r.set_defaults(fn=cmd_run)
+
+    c = sub.add_parser("compare", help="card-by-card vetoes of one model, or two runs of it")
+    c.add_argument("a", help="per_card.jsonl of the reference run")
+    c.add_argument("b", nargs="?", help="per_card.jsonl of the changed run (same cards)")
+    c.add_argument("--model", default="tree")
+    c.add_argument("--out", help="also write the markdown here")
+    c.set_defaults(fn=cmd_compare)
 
     args = p.parse_args(argv)
     return args.fn(args)

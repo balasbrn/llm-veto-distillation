@@ -34,6 +34,27 @@ def _date(ts: int) -> str:
     return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d")
 
 
+def _split_text(res: dict) -> str:
+    if res.get("split") == "date":
+        return (f"one shared date split at {_date(res['cutoff_ts'])}: students train on the "
+                f"{res['n_train']} cards before it (up to {_date(res['train_to_ts'])}) and are "
+                f"scored on the {res['n_test']} cards from it on.")
+    return (f"students train on the earliest {res['train_share']:.0%} of each group "
+            f"({res['n_train']} cards, up to {_date(res['train_to_ts'])}) and are scored on "
+            f"the rest ({res['n_test']} cards).")
+
+
+def _setup_lines(res: dict) -> list[str]:
+    dropped = res.get("dropped_features") or []
+    v = res.get("versions") or {}
+    out = []
+    if dropped:
+        out.append(f"**Features dropped from every tabular student:** {', '.join(dropped)}.")
+    if v:
+        out.append("Versions: " + ", ".join(f"{k} {x}" for k, x in v.items()) + ".")
+    return out + [""] if out else []
+
+
 def _join_lines(res: dict) -> list[str]:
     jc = res.get("join_counts")
     if not jc:
@@ -117,10 +138,12 @@ def _window_lines(res: dict) -> list[str]:
     ev = res.get("take_all_every_card")
     if not ev:
         return []
+    part = ("the cards from the cutoff on" if res.get("split") == "date" else
+            f"the latest {1 - res['train_share']:.0%} of the teacher-labelled cards")
     out = [f"**Window.** Test cards run from {_date(res['test_from_ts'])} to "
-           f"{_date(res['test_to_ts'])}: the latest {1 - res['train_share']:.0%} of the "
-           "teacher-labelled cards, a later and shorter window than any score computed on all "
-           "of them. Taking every card over the whole dataset, for comparison:", "",
+           f"{_date(res['test_to_ts'])}: {part}, a later and shorter window than any score "
+           "computed on all of them. Taking every card over the whole dataset, for comparison:",
+           "",
            "| group | cards | win rate | R net / trade |", "|---|---|---|---|"]
     for g, v in ev.items():
         out.append(f"| {g} | {v['n_take']} | {_f(v['win_rate'], '{:.1%}')} | "
@@ -138,10 +161,8 @@ def to_markdown(res: dict, title: str, source: str, examples: list[Card],
         f"Source: {source}", "",
         *([f"Dataset fingerprint (sha256): `{res['dataset_sha256']}`", ""]
           if res.get("dataset_sha256") else []),
-        f"Cards: {res['n_cards']} teacher-labelled; students train on the earliest "
-        f"{res['train_share']:.0%} of each group ({res['n_train']} cards, up to "
-        f"{_date(res['train_to_ts'])}) and are scored on the rest ({res['n_test']} cards). "
-        f"{res['n_purged']} training cards within one day of the split were purged, so no "
+        f"Cards: {res['n_cards']} teacher-labelled; {_split_text(res)} "
+        f"{res['n_purged']} cards within one day before the split were purged, so no "
         f"training outcome (20 bars = 5 hours) overlaps the test period. "
         f"The teacher said TAKE on {res['teacher_take_share_train']:.0%} of training cards.", "",
         "| group | train | test |", "|---|---|---|",
@@ -150,6 +171,7 @@ def to_markdown(res: dict, title: str, source: str, examples: list[Card],
         f"**Small data.** With {res['n_test']} test cards, a mean R per trade carries a "
         "standard error of roughly ±0.05–0.15 R (shown as ± below); differences smaller "
         "than that are noise.", "",
+        *_setup_lines(res),
         *_join_lines(res),
         *_cutoff_lines(res),
         "## Summary", "",
@@ -210,10 +232,26 @@ def to_markdown(res: dict, title: str, source: str, examples: list[Card],
     return "\n".join(lines) + "\n"
 
 
+def write_per_card(res: dict, path: Path) -> None:
+    """One line per test card: ids, the teacher's answer, every model's TAKE flag (and p_win
+    where it has one), and the outcome in its own fields, so agreement and trading stay apart."""
+    s = res["series"]
+    with path.open("w") as f:
+        for i in range(len(s["ts"])):
+            row = {"key": s["key"][i], "group": s["group"][i], "ts": s["ts"][i],
+                   "teacher_decision": s["teacher_decision"][i],
+                   "teacher_p_win": s["teacher_p_win"][i],
+                   "take": {m: bool(v[i]) for m, v in s["take"].items()},
+                   "p_win": {m: float(v[i]) for m, v in s["student_p_win"].items()},
+                   "outcome": s["outcome"][i], "r_net": s["r_net"][i]}
+            f.write(json.dumps(row) + "\n")
+
+
 def write(res: dict, out: Path, title: str, source: str, examples: list[Card]) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     figures = plots.all_figures(res, out / "figures", best_student(res))
     metrics = {k: v for k, v in res.items() if k != "series"}
+    write_per_card(res, out / "per_card.jsonl")
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     path = out / "REPORT.md"
     path.write_text(to_markdown(res, title, source, examples, figures))

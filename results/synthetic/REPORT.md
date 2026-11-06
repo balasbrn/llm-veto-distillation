@@ -2,7 +2,7 @@
 
 Source: synthetic cards and a hand-written heuristic teacher (`veto_distill.synthetic`); no market data, no LLM. Numbers here only show the pipeline works.
 
-Cards: 1200 teacher-labelled; students train on the earliest 60% of each group (708 cards, up to 2022-02-21) and are scored on the rest (480 cards). 12 training cards within one day of the split were purged, so no training outcome (20 bars = 5 hours) overlaps the test period. The teacher said TAKE on 31% of training cards.
+Cards: 1200 teacher-labelled; students train on the earliest 60% of each group (708 cards, up to 2022-02-21) and are scored on the rest (480 cards). 12 cards within one day before the split were purged, so no training outcome (20 bars = 5 hours) overlaps the test period. The teacher said TAKE on 31% of training cards.
 
 | group | train | test |
 |---|---|---|
@@ -11,10 +11,12 @@ Cards: 1200 teacher-labelled; students train on the earliest 60% of each group (
 
 **Small data.** With 480 test cards, a mean R per trade carries a standard error of roughly ±0.05–0.15 R (shown as ± below); differences smaller than that are noise.
 
+Versions: python 3.13.18, numpy 2.5.4, scikit-learn 1.9.1.
+
 ## Summary
 
 - **Distillation:** the best student (`pwin_tree`) reaches Cohen's κ 0.36 against the teacher (0 = chance, 1 = perfect copy), with raw agreement 75%. Raw agreement is inflated by the teacher's 28% TAKE rate on test cards: always giving its most common answer already agrees on 72%.
-- **Speed:** teacher median 1,260 ms per card (one API call); `pwin_tree` 0.37 ms per card including training.
+- **Speed:** teacher median 1,260 ms per card (one API call); `pwin_tree` 0.48 ms per card including training.
 - **Usefulness:** taking every test signal earns -0.075 R per trade. The teacher's TAKE set differs from that by -0.007 ± 0.100 (-0.1 SE), `pwin_tree` by +0.030 ± 0.114 (+0.3 SE) (paired bootstrap SE). Neither the teacher nor any student shows a measurable difference from taking every signal, so there is no edge to distil.
 - **Calibration:** the teacher's p_win averages 0.35 against a realised win rate of 32% (p_win bins 0.28–0.42, realised win rates 29%–35%), overconfident by 2 points. Its p_win ranks wins with AUC 0.50 (0.5 = no ranking). A probability that does not rank outcomes gives a student nothing useful to copy.
 
@@ -25,11 +27,11 @@ Cards: 1200 teacher-labelled; students train on the earliest 60% of each group (
 | `take_all` | take every signal (no veto) | 0.00 | 27.9% | 480 (100%) | 29.6% | -0.075 ± 0.061 | – | -35.8 | – |
 | `teacher` | the LLM's decisions | 1.00 | 100.0% | 134 (28%) | 29.9% | -0.081 ± 0.117 | -0.007 ± 0.100 (-0.1 SE) | -10.9 | 1,260.00 |
 | `majority` | student: always the teacher's most common answer | 0.00 | 72.1% | 0 (0%) | – | – ± – | – | +0.0 | 0.00 |
-| `logistic` | student: logistic regression on the card's numbers | -0.00 | 50.0% | 238 (50%) | 30.7% | -0.053 ± 0.088 | +0.022 ± 0.061 (+0.4 SE) | -12.6 | 0.04 |
-| `tree` | student: gradient-boosted tree (depth 3) on the card's numbers | 0.27 | 69.6% | 152 (32%) | 30.3% | -0.062 ± 0.109 | +0.013 ± 0.089 (+0.1 SE) | -9.4 | 4.09 |
-| `text` | student: char n-gram TF-IDF + logistic regression on the card text | -0.01 | 57.1% | 160 (33%) | 30.0% | -0.039 ± 0.105 | +0.036 ± 0.084 (+0.4 SE) | -6.2 | 1.42 |
-| `pwin_tree` | student: tree regressing the teacher's p_win, then the teacher's rule | 0.36 | 75.4% | 116 (24%) | 31.0% | -0.045 ± 0.126 | +0.030 ± 0.114 (+0.3 SE) | -5.2 | 0.37 |
-| `outcome_tree` | not a student: the same tree trained on real outcomes | 0.02 | 55.6% | 189 (39%) | 28.0% | -0.137 ± 0.096 | -0.062 ± 0.076 (-0.8 SE) | -25.9 | 0.27 |
+| `logistic` | student: logistic regression on the card's numbers | -0.00 | 50.0% | 238 (50%) | 30.7% | -0.053 ± 0.088 | +0.022 ± 0.061 (+0.4 SE) | -12.6 | 0.03 |
+| `tree` | student: gradient-boosted tree (depth 3) on the card's numbers | 0.27 | 69.6% | 152 (32%) | 30.3% | -0.062 ± 0.109 | +0.013 ± 0.089 (+0.1 SE) | -9.4 | 3.44 |
+| `text` | student: char n-gram TF-IDF + logistic regression on the card text | -0.01 | 57.1% | 160 (33%) | 30.0% | -0.039 ± 0.105 | +0.036 ± 0.084 (+0.4 SE) | -6.2 | 1.48 |
+| `pwin_tree` | student: tree regressing the teacher's p_win, then the teacher's rule | 0.36 | 75.4% | 116 (24%) | 31.0% | -0.045 ± 0.126 | +0.030 ± 0.114 (+0.3 SE) | -5.2 | 0.48 |
+| `outcome_tree` | not a student: the same tree trained on real outcomes | 0.02 | 55.6% | 189 (39%) | 28.0% | -0.137 ± 0.096 | -0.062 ± 0.076 (-0.8 SE) | -25.9 | 0.22 |
 
 No decision maker earns a positive mean R per trade on the test cards.
 

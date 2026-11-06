@@ -21,7 +21,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from veto_distill.card import Card, feature_row
+from veto_distill.card import FEATURES, Card, feature_row
 from veto_distill.teacher import TP_R
 
 SEED = 13
@@ -33,8 +33,29 @@ class Prediction:
     p_win: np.ndarray | None = None  # estimated p_win per test card, if the model has one
 
 
+_DROPPED: tuple[str, ...] = ()  # feature names left out of every tabular student
+
+
+def set_dropped(names) -> None:
+    """Leave these card.FEATURES columns out of every tabular student (logistic, tree,
+    pwin_tree and the outcome_tree reference); () restores the full card."""
+    global _DROPPED
+    unknown = [n for n in names if n not in FEATURES]
+    if unknown:
+        raise ValueError(f"unknown features {unknown}; known: {', '.join(FEATURES)}")
+    if len(set(names)) >= len(FEATURES):
+        raise ValueError("cannot drop every feature")
+    _DROPPED = tuple(names)
+
+
+def used_features() -> list[str]:
+    return [f for f in FEATURES if f not in _DROPPED]
+
+
 def matrix(cards: list[Card]) -> np.ndarray:
-    return np.array([feature_row(c) for c in cards], dtype=float)
+    x = np.array([feature_row(c) for c in cards], dtype=float).reshape(len(cards), len(FEATURES))
+    keep = [i for i, f in enumerate(FEATURES) if f not in _DROPPED]
+    return x[:, keep]
 
 
 def teacher_take(cards: list[Card]) -> np.ndarray:

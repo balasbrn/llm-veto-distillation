@@ -18,7 +18,7 @@ from sklearn.metrics import cohen_kappa_score
 
 from veto_distill import students as st
 from veto_distill.card import Card
-from veto_distill.data import time_split
+from veto_distill.data import date_split, time_split
 
 
 def agreement(student_take: np.ndarray, teacher_take: np.ndarray) -> dict:
@@ -104,9 +104,30 @@ def calibration_summary(cards: list[Card]) -> dict | None:
             "overconfidence": float(p.mean() - y.mean()), "auc": auc}
 
 
-def run(cards: list[Card], train_share: float = 0.6) -> dict:
+def versions() -> dict:
+    import platform
+
+    import sklearn
+
+    return {"python": platform.python_version(), "numpy": np.__version__,
+            "scikit-learn": sklearn.__version__}
+
+
+def run(cards: list[Card], train_share: float = 0.6, drop: tuple[str, ...] = (),
+        cutoff_ts: int | None = None) -> dict:
     """Fit every student on the earlier cards, score all of them on the later ones."""
-    train, test, purged = time_split(cards, train_share)
+    st.set_dropped(drop)
+    try:
+        return _run(cards, train_share, drop, cutoff_ts)
+    finally:
+        st.set_dropped(())
+
+
+def _run(cards, train_share, drop, cutoff_ts) -> dict:
+    if cutoff_ts is None:
+        train, test, purged = time_split(cards, train_share)
+    else:
+        train, test, purged = date_split(cards, cutoff_ts)
     if not train or not test:
         raise ValueError(f"need cards in both parts; got {len(train)} train, {len(test)} test")
     t_take = st.teacher_take(test)
@@ -169,7 +190,14 @@ def run(cards: list[Card], train_share: float = 0.6) -> dict:
         "test_to_ts": max(c.ts for c in test),
         "teacher_gain_r_per_trade": teacher_gain,
         # per test card, for the plots (not part of metrics.json)
+        "split": ("date" if cutoff_ts is not None else "per-group share"),
+        "cutoff_ts": cutoff_ts,
+        "dropped_features": list(drop), "features_used": st.used_features(),
+        "versions": versions(),
         "series": {"ts": [c.ts for c in test], "r_net": [c.r_net for c in test],
+                   "key": [c.key for c in test], "group": [c.group for c in test],
+                   "outcome": [c.outcome for c in test],
+                   "teacher_decision": [c.teacher_decision for c in test],
                    "teacher_p_win": [c.teacher_p_win for c in test],
                    "take": takes, "student_p_win": student_p},
     }

@@ -55,6 +55,18 @@ def time_split(cards: list[Card], train_share: float = 0.6,
     return sorted(train, key=key), sorted(test, key=key), purged
 
 
+def date_split(cards: list[Card], cutoff_ts: int,
+               purge_s: int = PURGE_S) -> tuple[list[Card], list[Card], int]:
+    """One shared date for every group: train = ts + purge_s < cutoff, test = ts >= cutoff.
+    Cards in between (within purge_s before the cutoff) are purged and counted."""
+    if purge_s < HORIZON_S:
+        raise ValueError(f"purge_s must cover the {HORIZON_S} s outcome horizon, not {purge_s}")
+    key = lambda c: (c.ts, c.key)  # noqa: E731
+    train = sorted((c for c in cards if c.ts + purge_s < cutoff_ts), key=key)
+    test = sorted((c for c in cards if c.ts >= cutoff_ts), key=key)
+    return train, test, len(cards) - len(train) - len(test)
+
+
 def sha256(path: Path) -> str:
     """Fingerprint of a file, so a result can be tied to the exact snapshot it came from."""
     h = hashlib.sha256()

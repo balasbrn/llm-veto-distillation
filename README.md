@@ -185,7 +185,7 @@ The best student runs in under 1 ms per card vs ~1.3 s for an API call.
 
 ```bash
 make install          # Python 3.11+; numpy, scikit-learn, matplotlib (+ pyarrow for import)
-make test             # 24 tests, synthetic data only
+make test             # 32 tests, synthetic data only
 make demo             # full pipeline on synthetic data -> results/synthetic/
 ```
 
@@ -201,6 +201,18 @@ for RUN in gemini-2.5-flash-v2-think0 gemini-2.5-flash-v1.1-think1024; do
          --teacher-cutoff 2025-01-31
 done
 ```
+
+Each run also writes `per_card.jsonl` (every model's TAKE flag per test card, outcome in its
+own fields; ignored by git because it holds real data). Experiments reuse it:
+
+```bash
+vd run ... --drop-features atr_pct,atr_rank_30d,fee_pct_of_risk   # same rows, fewer inputs
+vd run ... --cutoff 2022-03-01                                     # one shared date split
+vd compare results/A/per_card.jsonl results/B/per_card.jsonl --model tree
+```
+
+`vd compare` counts missed and extra vetoes against the teacher, the cards the change fixed and
+broke (exact two-sided sign test), and then, separately, the trading results.
 
 `vd import` prints the join counts and the report repeats them. Expected teacher lines:
 v2 633 (ADA) and 629 (BTC); v1.1-think1024 632 and 630.
@@ -223,10 +235,11 @@ src/veto_distill/
   teacher.py     prompt, answer parser, decision rule, optional Gemini call
   students.py    the students and the outcome reference
   evaluate.py    split, agreement, κ, R net, calibration, latency
+  compare.py     card-by-card vetoes of one model, or two runs of it
   plots.py       charts
   report.py      REPORT.md + metrics.json
   synthetic.py   synthetic cards and heuristic teacher for tests and the demo
-tests/           24 tests
+tests/           32 tests
 notebooks/       colab.ipynb: demo + real-data run in Colab
 results/         reports (synthetic now, real when run)
 ```
