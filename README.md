@@ -220,6 +220,15 @@ v2 633 (ADA) and 629 (BTC); v1.1-think1024 632 and 630.
 Expected snapshot layout: `h16/cards/<PAIR>/<period>/cards.parquet` (card fields, outcome,
 R net) and `h16/teacher/<PAIR>-<period>-<run>.jsonl` (one teacher answer per line).
 
+## Background and certification
+
+This project applies the distillation part of NVIDIA's course
+**The Art of Compressing LLMs: Pruning, Distillation, and Quantization Demystified**
+(Certificate of Competency, issued November 10, 2026;
+[verify](https://learn.nvidia.com/certificates?id=5GdXy5BkQyKAFXkroo0lyw)). Here the
+"compression" goes all the way from a hosted LLM to a millisecond table model, and the
+write-up measures what survives the trip.
+
 ## Tech stack
 
 Python · scikit-learn (logistic regression, histogram gradient boosting, TF-IDF) · NumPy ·
